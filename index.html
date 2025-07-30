@@ -8,7 +8,7 @@
 </head>
 <body>
     <div id="cabine">
-        <h1>Foto Logo PSAI</h1>
+        <h1>Nome do Seu Evento</h1>
         <p id="resolution-info" style="font-size: 12px; color: #bdc3c7;">Resolução: -</p>
         <div id="camera-container">
             <canvas id="canvas"></canvas>
@@ -16,7 +16,9 @@
         </div>
         <button id="capture-btn">Tirar Foto!</button>
         <button id="switch-cam-btn">Trocar Câmera</button>
-        <a id="download-link" style="display: none;">Baixar Foto</a>
+        
+        <a id="download-link" class="post-capture-btn" style="display: none;">Baixar Foto</a>
+        <button id="retake-btn" class="post-capture-btn" style="display: none;">Tirar Outra</button>
     </div>
     <script src="script.js"></script>
 </body>
