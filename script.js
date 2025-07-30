@@ -4,27 +4,32 @@ const context = canvas.getContext('2d');
 const captureBtn = document.getElementById('capture-btn');
 const switchCamBtn = document.getElementById('switch-cam-btn');
 const downloadLink = document.getElementById('download-link');
-const retakeBtn = document.getElementById('retake-btn'); // Pega o novo botão
+const retakeBtn = document.getElementById('retake-btn');
 const resolutionInfo = document.getElementById('resolution-info');
 
 let currentFacingMode = 'user';
 let currentStream;
+let animationFrameId; // Variável para controlar o nosso "pintor" (o loop de desenho)
 
 const logo = new Image();
 logo.src = 'logo.png';
 
-// --- Funções de Câmera (sem alterações) ---
 function startCamera(facingMode) {
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
+    // Para o pintor antes de iniciar uma nova câmera
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+
     const constraints = { video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } } };
     navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
             currentStream = stream;
             video.srcObject = stream;
             video.play();
-            requestAnimationFrame(drawFrame);
+            drawFrame(); // Inicia o pintor
         })
         .catch(err => {
             console.error("Pedido de alta resolução falhou, tentando modo de segurança.", err);
@@ -38,7 +43,7 @@ function startCameraFallback(facingMode) {
             currentStream = stream;
             video.srcObject = stream;
             video.play();
-            requestAnimationFrame(drawFrame);
+            drawFrame(); // Inicia o pintor
         })
         .catch(err => {
             console.error("Erro fatal, não foi possível acessar a câmera.", err);
@@ -55,7 +60,9 @@ function drawFrame() {
     const margin = canvas.width * 0.05;
     context.drawImage(logo, canvas.width - logoWidth - margin, canvas.height - logoHeight - margin, logoWidth, logoHeight);
     resolutionInfo.textContent = `Resolução: ${video.videoWidth}x${video.videoHeight}`;
-    requestAnimationFrame(drawFrame);
+    
+    // Pede ao pintor para pintar o próximo quadro e guarda o 'ID' do pedido
+    animationFrameId = requestAnimationFrame(drawFrame);
 }
 switchCamBtn.addEventListener('click', () => {
     currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
@@ -63,9 +70,8 @@ switchCamBtn.addEventListener('click', () => {
 });
 
 
-// --- Lógica da Captura e Revisão (A Grande Mudança) ---
+// --- Lógica da Captura e Revisão CORRIGIDA ---
 
-// Função para mostrar a interface da câmera ao vivo
 function showLiveView() {
     video.style.display = 'block';
     captureBtn.style.display = 'inline-block';
@@ -74,9 +80,7 @@ function showLiveView() {
     retakeBtn.style.display = 'none';
 }
 
-// Função para mostrar a interface de revisão da foto
 function showReviewView() {
-    // Esconde o vídeo para dar o efeito de "congelado" no canvas
     video.style.display = 'none'; 
     captureBtn.style.display = 'none';
     switchCamBtn.style.display = 'none';
@@ -84,24 +88,25 @@ function showReviewView() {
     retakeBtn.style.display = 'inline-block';
 }
 
-// Quando o botão "Tirar Foto!" é clicado
 captureBtn.addEventListener('click', () => {
-    // A função drawFrame já desenhou a imagem no canvas.
-    // Agora, apenas mudamos a interface para o modo de revisão.
+    // --- CORREÇÃO IMPORTANTE: DÁ O COMANDO 'PARE' PARA O PINTOR ---
+    cancelAnimationFrame(animationFrameId);
+
+    // Agora, a imagem no canvas está verdadeiramente congelada.
     showReviewView();
 
-    // Prepara o link de download para a imagem atual no canvas
     const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
     downloadLink.href = dataUrl;
     downloadLink.download = 'foto_evento_HD.jpg';
 });
 
-// Quando o botão "Tirar Outra" é clicado
 retakeBtn.addEventListener('click', () => {
     // Volta para a interface da câmera ao vivo
     showLiveView();
+    // --- CORREÇÃO IMPORTANTE: DÁ O COMANDO 'CONTINUE' PARA O PINTOR ---
+    drawFrame();
 });
 
-// Inicia a câmera no modo ao vivo quando a página carrega
+// Inicia a câmera e a interface
 startCamera(currentFacingMode);
 showLiveView();
