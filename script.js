@@ -9,7 +9,7 @@ const resolutionInfo = document.getElementById('resolution-info');
 
 let currentFacingMode = 'user';
 let currentStream;
-let animationFrameId; // Variável para controlar o nosso "pintor" (o loop de desenho)
+let animationFrameId;
 
 const logo = new Image();
 logo.src = 'logo.png';
@@ -18,21 +18,29 @@ function startCamera(facingMode) {
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
-    // Para o pintor antes de iniciar uma nova câmera
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
     }
 
-    const constraints = { video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } } };
+    // --- O EXPERIMENTO: PEDINDO RESOLUÇÃO 4K ---
+    // Trocamos o 'ideal' de 1920x1080 para 3840x2160 (4K UHD)
+    const constraints = {
+        video: {
+            facingMode: facingMode,
+            width: { ideal: 3840 },
+            height: { ideal: 2160 }
+        }
+    };
+
     navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
             currentStream = stream;
             video.srcObject = stream;
             video.play();
-            drawFrame(); // Inicia o pintor
+            drawFrame();
         })
         .catch(err => {
-            console.error("Pedido de alta resolução falhou, tentando modo de segurança.", err);
+            console.error("Pedido de 4K falhou, tentando modo de segurança.", err);
             startCameraFallback(facingMode);
         });
 }
@@ -43,7 +51,7 @@ function startCameraFallback(facingMode) {
             currentStream = stream;
             video.srcObject = stream;
             video.play();
-            drawFrame(); // Inicia o pintor
+            drawFrame();
         })
         .catch(err => {
             console.error("Erro fatal, não foi possível acessar a câmera.", err);
@@ -60,18 +68,23 @@ function drawFrame() {
     const margin = canvas.width * 0.05;
     context.drawImage(logo, canvas.width - logoWidth - margin, canvas.height - logoHeight - margin, logoWidth, logoHeight);
     resolutionInfo.textContent = `Resolução: ${video.videoWidth}x${video.videoHeight}`;
-    
-    // Pede ao pintor para pintar o próximo quadro e guarda o 'ID' do pedido
     animationFrameId = requestAnimationFrame(drawFrame);
 }
 switchCamBtn.addEventListener('click', () => {
     currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
     startCamera(currentFacingMode);
 });
-
-
-// --- Lógica da Captura e Revisão CORRIGIDA ---
-
+captureBtn.addEventListener('click', () => {
+    cancelAnimationFrame(animationFrameId);
+    showReviewView();
+    const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+    downloadLink.href = dataUrl;
+    downloadLink.download = 'foto_evento_4K.jpg';
+});
+retakeBtn.addEventListener('click', () => {
+    showLiveView();
+    drawFrame();
+});
 function showLiveView() {
     video.style.display = 'block';
     captureBtn.style.display = 'inline-block';
@@ -79,7 +92,6 @@ function showLiveView() {
     downloadLink.style.display = 'none';
     retakeBtn.style.display = 'none';
 }
-
 function showReviewView() {
     video.style.display = 'none'; 
     captureBtn.style.display = 'none';
@@ -87,26 +99,5 @@ function showReviewView() {
     downloadLink.style.display = 'inline-block';
     retakeBtn.style.display = 'inline-block';
 }
-
-captureBtn.addEventListener('click', () => {
-    // --- CORREÇÃO IMPORTANTE: DÁ O COMANDO 'PARE' PARA O PINTOR ---
-    cancelAnimationFrame(animationFrameId);
-
-    // Agora, a imagem no canvas está verdadeiramente congelada.
-    showReviewView();
-
-    const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
-    downloadLink.href = dataUrl;
-    downloadLink.download = 'foto_evento_HD.jpg';
-});
-
-retakeBtn.addEventListener('click', () => {
-    // Volta para a interface da câmera ao vivo
-    showLiveView();
-    // --- CORREÇÃO IMPORTANTE: DÁ O COMANDO 'CONTINUE' PARA O PINTOR ---
-    drawFrame();
-});
-
-// Inicia a câmera e a interface
 startCamera(currentFacingMode);
 showLiveView();
